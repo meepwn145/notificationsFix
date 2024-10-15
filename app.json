@@ -18,9 +18,10 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAlWELpYZIW3WfRx4JI7kQl5r6ejwcxS1Y"
+        }
       },
       "package": "com.ciedner.users"
     },

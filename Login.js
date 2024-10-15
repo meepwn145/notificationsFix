@@ -4,16 +4,20 @@ import { useNavigation } from '@react-navigation/native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from './config/firebase';
 import { registerIndieID } from 'native-notify';
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
+import { getIdToken } from 'firebase/auth'; // Import this to get the ID token
+import { onAuthStateChanged } from 'firebase/auth';
 
 export function LoginScreen() {
   const navigation = useNavigation();
-
+  const [userReservation, setUserReservation] = useState(null); // Declare user reservation state
+  const resetReservationState = () => {
+    setUserReservation(null); // Clear the current reservation data
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
- 
   const handleGoToDashboard = (user) => {
     navigation.navigate('Profiles', { user });
 };
@@ -25,28 +29,42 @@ export function LoginScreen() {
   const handleLogin = async () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  
+      
       if (!userCredential || !userCredential.user) {
         console.error('User not found in userCredential');
         return;
       }
-  
+
       const { user } = userCredential;
       console.log('Authentication successful for UID:', user.uid);
-  
+
+      // Step 1: Retrieve the access token (ID token)
+      const accessToken = await user.getIdToken(); // Retrieve the ID token (access token)
+      console.log('Access Token:', accessToken);
+
+      // Optional: Store the token in Firestore for later use
+      const userDocRef = doc(db, 'userTokens', user.email);
+      await setDoc(userDocRef, {
+        token: accessToken,
+        email: user.email,
+        timestamp: new Date(),
+      });
+
+      // Step 2: Register the Indie ID for Native Notify
       try {
-        await registerIndieID(user.email, 21460, 'rLQ1cRoXNKwLkZE4aWOyKw');
-        console.log('Indie ID registration successful for UID:', user.email);
+        await registerIndieID(user.email, 23768, '6W2xCaWiR8rBZCBR7UUCkv');
+        console.log('Indie ID registration successful for email:', user.email);
       } catch (error) {
         console.error('Error during Indie ID registration:', error);
       }
-      const userDocRef = doc(db, "user", user.uid);
-      const userDoc = await getDoc(userDocRef);
+
+      // Step 3: Navigate to the dashboard with the user and token info
+      const userDoc = await getDoc(doc(db, 'user', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        navigation.navigate('Dashboard', { user: userData, uid: user.uid });
+        navigation.navigate('Dashboard', { user: userData, token: accessToken, uid: user.uid });
       } else {
-        console.error(`No user data found in Firestore for user: ${user.uid}`);
+        console.error("No user data found in Firestore for user: ${user.uid}");
       }
     } catch (error) {
       console.error('Error logging in:', error.message || error);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef} from "react";
 import { View, Text, TextInput, SafeAreaView, StyleSheet, Dimensions } from "react-native";
-import MapView, { Marker, AnimatedRegion } from "react-native-maps";
+import MapView, { Marker, AnimatedRegion, PROVIDER_GOOGLE } from "react-native-maps"; 
 import { Button } from "react-native-elements";
 import Constants from "expo-constants";
 import { useStoreState } from "pullstate";
@@ -16,7 +16,7 @@ const screen = Dimensions.get("window");
 const ASPECT_RATIO = screen.width / screen.height;
 const LATITUDE_DELTA = 0.03;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
-const API_KEY = "AIzaSyBR5rRsw0Z-1hcxMWFz56mo4yJjlaELprg";
+const API_KEY = "AIzaSyAlWELpYZIW3WfRx4JI7kQl5r6ejwcxS1Y";
 
 const Map = ({ route }) => {
     const item = route?.params?.from || null;
@@ -199,15 +199,16 @@ const Map = ({ route }) => {
         <SafeAreaView style={styles.containerStyle}>
             <View style={styles.mapStyle}>
                 <MapView
-                    ref={mapRef}
-                    style={StyleSheet.absoluteFillObject} // Ensures the map fills the space
-                    initialRegion={{
-                        ...current,
-                        latitudeDelta: LATITUDE_DELTA,
-                        longitudeDelta: LONGITUDE_DELTA,
-                    }}
+                ref={mapRef}
+                provider={PROVIDER_GOOGLE}
+                style={StyleSheet.absoluteFillObject}
+                initialRegion={{
+                    ...current,
+                    latitudeDelta: LATITUDE_DELTA,
+                    longitudeDelta: LONGITUDE_DELTA,
+                }}
                 >
-                    <Marker.Animated coordinate={coordinate} title="YOU" pinColor="blue" />
+              <Marker.Animated coordinate={coordinate} title="YOU" pinColor="blue" />
                     {recommendedPlaces.map((place) => (
                         <Marker
                             key={place.id}
@@ -250,6 +251,7 @@ const Map = ({ route }) => {
     );
 };
 
+
 const styles = StyleSheet.create({
     menuBarStyle: {
         width: 240,
@@ -277,9 +279,11 @@ const styles = StyleSheet.create({
     },
 
     mapStyle: {
+        flex:1,
         height: "100%",
         width: "100%",
     },
+
     searchContainerStyle: {
         height: 60,
         position: "absolute",

@@ -7,6 +7,8 @@ import { LocationStore } from "./store";
 import * as Location from "expo-location";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./config/firebase";
+import {unregisterIndieDevice} from 'native-notify';
+import { auth } from './config/firebase'; // Make sure you import auth from firebase
 
 export default function Dashboard() {
     const navigation = useNavigation();
@@ -72,7 +74,11 @@ export default function Dashboard() {
 
     const handleCardClick = (screenName) => {
         setSidebarVisible(false);
-        navigation.navigate(screenName);
+        if (screenName === "Start") {
+            handleLogout();
+        } else {
+            navigation.navigate(screenName);
+        }
     };
 
     const handleBarsClick = () => {
@@ -175,6 +181,73 @@ export default function Dashboard() {
             navigation.navigate("Map");
         }
     };
+    useEffect(() => {
+        if (user) {
+            console.log('Current User:', user);
+        } else {
+            console.log('No user is logged in');
+        }
+    }, [user]);
+    
+    const handleLogout = async () => { 
+        try {
+            if (!auth.currentUser) {
+                console.error('No user currently logged in to logout');
+                alert('No user is logged in');
+                return;
+            }
+    
+            // Ensure we have the user's email or a valid identifier for unregistration
+            const userEmail = auth.currentUser.email;
+            if (!userEmail) {
+                console.error('No email found for the current user');
+                alert('Failed to retrieve user email for logout');
+                return;
+            }
+    
+            // Call Native Notify to unregister the device
+            await unregisterIndieDevice(userEmail, 23768, '6W2xCaWiR8rBZCBR7UUCkv');
+            console.log('Indie ID unregistration successful for email:', userEmail);
+    
+            // Proceed with Firebase sign-out or other cleanup actions
+            await auth.signOut();
+            console.log('Firebase sign-out successful for UID:', userEmail);
+    
+            // Redirect or update UI post-logout
+            navigation.navigate('Login'); // Uncomment or modify based on your routing needs
+        } catch (error) {
+            console.error('Error during logout:', error.message);
+            alert('Logout failed: ' + error.message);
+        }
+    };
+    
+    const unregisterIndieSubs = async () => {
+        setIsLoading(true); // Starts loading
+        try {
+            const response = await fetch('https://api.example.com/unsubscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${'6W2xCaWiR8rBZCBR7UUCkv'}`, // Add backticks for template literal
+                },
+                body: JSON.stringify({ userId: user.email, appId: 23768 }) // Proper JSON format
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to unsubscribe.');
+            }
+    
+            const data = await response.json();
+            console.log('Unregistered Indie Subs for user ID:', user.email);
+            Alert.alert("Success", "You have been successfully unsubscribed.");
+        } catch (error) {
+            console.error('Error during Indie Subs unregistration:', error);
+            Alert.alert("Error", "Unsubscription failed.");
+        } finally {
+            setIsLoading(false); // Stops loading after completion
+        }
+    };
+    
 
     return (
         <View style={styles.container}>
@@ -271,7 +344,7 @@ export default function Dashboard() {
                                     <Text style={styles.sidebarButtonText}>Parking</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Start")}>
+                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleLogout("Start")}>
                                     <Image source={{ uri: 'https://i.imgur.com/YzzzEXD.png' }} style={styles.sidebarIcon} />
                                     <Text style={styles.sidebarButtonText}>Log Out</Text>
                                 </TouchableOpacity>

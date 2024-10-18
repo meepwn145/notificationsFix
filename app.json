@@ -23,7 +23,8 @@
           "apiKey": "AIzaSyAlWELpYZIW3WfRx4JI7kQl5r6ejwcxS1Y"
         }
       },
-      "package": "com.ciedner.users"
+      "package": "com.ciedner.users",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"

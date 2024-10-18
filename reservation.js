@@ -49,10 +49,12 @@ export default function ReservationScreen({ route }) {
         };
     }, []);
 
+    const USER_RESERVED_SLOTS_KEY = `reservedSlots_${user.email}`;
+
     useEffect(() => {
         const loadReservedSlots = async () => {
             try {
-                const storedReservedSlots = await AsyncStorage.getItem("reservedSlots");
+                const storedReservedSlots = await AsyncStorage.getItem(USER_RESERVED_SLOTS_KEY);
                 if (storedReservedSlots) {
                     setReservedSlots(JSON.parse(storedReservedSlots));
                 }
@@ -60,22 +62,26 @@ export default function ReservationScreen({ route }) {
                 console.error("Error loading reserved slots from AsyncStorage:", error);
             }
         };
-
-        loadReservedSlots();
-    }, []);
-
+    
+        if (user.email) {
+            loadReservedSlots();
+        }
+    }, [user?.email]);
+    
     useEffect(() => {
         const saveReservedSlots = async () => {
             try {
-                await AsyncStorage.setItem("reservedSlots", JSON.stringify(reservedSlots));
+                await AsyncStorage.setItem(USER_RESERVED_SLOTS_KEY, JSON.stringify(reservedSlots));
             } catch (error) {
                 console.error("Error saving reserved slots to AsyncStorage:", error);
             }
         };
-
-        saveReservedSlots();
-    }, [reservedSlots]);
-
+    
+        if (user.email) {
+            saveReservedSlots();
+        }
+    }, [reservedSlots, user.email]);
+    
     useEffect(() => {
         const fetchUserData = async () => {
             if (user?.email) {

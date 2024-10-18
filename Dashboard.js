@@ -206,7 +206,7 @@ export default function Dashboard() {
             }
     
             // Call Native Notify to unregister the device
-            await unregisterIndieDevice(userEmail, 23768, '6W2xCaWiR8rBZCBR7UUCkv');
+            await unregisterIndieDevice(userEmail, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
             console.log('Indie ID unregistration successful for email:', userEmail);
     
             // Proceed with Firebase sign-out or other cleanup actions
@@ -230,7 +230,7 @@ export default function Dashboard() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${'6W2xCaWiR8rBZCBR7UUCkv'}`, // Add backticks for template literal
                 },
-                body: JSON.stringify({ userId: user.email, appId: 23768 }) // Proper JSON format
+                body: JSON.stringify({ userId: user.email, appId: 24190 }) // Proper JSON format
             });
     
             if (!response.ok) {

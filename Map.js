@@ -32,6 +32,7 @@ const Map = ({ route }) => {
     const location = useStoreState(LocationStore);
     const [selectedParkingPay, setSelectedParkingPay] = useState("");
     const [availableSlots, setAvailableSlots] = useState("");
+    const initialDestination = route?.params?.destination || null;
     const [state, setState] = useState({
         current: {
             latitude: location.lat,
@@ -80,6 +81,19 @@ const Map = ({ route }) => {
             setShowDirections(true);
         }
     }, [recommendedPlaces]);
+
+    useEffect(() => {
+        if (initialDestination) {
+            setState((prevState) => ({
+                ...prevState,
+                destination: initialDestination,
+            }));
+            setSelectedPlaceName(initialDestination.managementName);
+            setSelectedParkingPay(initialDestination.parkingPay);
+            setAvailableSlots(initialDestination.availableSlots);
+            setShowDirections(true);
+        }
+    }, [initialDestination]);
 
     // Fetch location every 5 seconds
     useEffect(() => {

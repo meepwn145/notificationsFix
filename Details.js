@@ -45,16 +45,29 @@ export default function DetailsScreen({ route }) {
         }
     }, [item]);
 
+    const navigateToMapWithDirections = () => {
+        navigation.navigate("Map", {
+            from: item,
+            destination: {
+                latitude: item.coordinates.lat,
+                longitude: item.coordinates.lng,
+            },
+        });
+    };
+
+    
+
     return (
         <View style={styles.container}>
             <Image source={{ uri: 'https://i.imgur.com/WwPGlNh.png' }} style={styles.backgroundImage} />
-            <Image source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }} style={[styles.backgroundImage, { borderTopLeftRadius: 80, marginTop: 100, borderTopRightRadius: 80 }]} />
+            <Image source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }} style={[styles.backgroundImage, { borderTopLeftRadius: 50, marginTop: 70, borderTopRightRadius: 50 }]} />
             <Text style={styles.titleText}>Details</Text>
 
             <Card containerStyle={styles.cardContainer}>
                 <View>
                     <Text style={styles.headerName}>{item.managementName}</Text>
-                    <Image source={{ uri: item.profileImageUrl }} style={styles.image} />
+                    <Image  source={item.profileImageUrl ? { uri: item.profileImageUrl } : require("./images/SPOTWISE.png")}
+                     style={styles.image}/>
                     <Text style={styles.para1}>Open at: {item.openTime} A.M until {item.closeTime} P.M</Text>
                     <Text style={styles.para}>Located at</Text>
                     <Text style={styles.address}>{item.companyAddress}</Text>
@@ -67,9 +80,9 @@ export default function DetailsScreen({ route }) {
                 <Text style={styles.buttonText1}>Reserve</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => navigation.navigate("Map", { from: item })} style={styles.button}>
-                <Text style={styles.buttonText}>Direction</Text>
-            </TouchableOpacity>
+            <TouchableOpacity onPress={navigateToMapWithDirections} style={styles.button}>
+            <Text style={styles.buttonText}>Direction</Text>
+        </TouchableOpacity>
         </View>
     );
 }
@@ -81,10 +94,10 @@ const styles = StyleSheet.create({
     },
     titleText: {
         color: "white",
-        fontSize: 50,
+        fontSize: 10,
         fontWeight: "bold",
         textAlign: "center",
-        marginTop: 10,
+        marginTop: 4,
     },
     para1: {
         fontSize: 14,
@@ -109,6 +122,8 @@ const styles = StyleSheet.create({
         fontFamily: 'Copperplate',
     },
     image: {
+        marginTop: 10,
+        marginLeft: 75,
         width: 200,
         height: 200,
         resizeMode: "cover",
@@ -132,19 +147,21 @@ const styles = StyleSheet.create({
         borderRadius: 100,
         alignItems: "center",
         borderWidth: 2,
-        marginTop: 30, // Adjusted marginTop
+        marginTop: 20, // Adjusted marginTop
         marginBottom: 30, // Adjusted marginBottom
         width: "90%",
         alignSelf: "center",
     },
     cardContainer: {
-        marginTop: "20%",
+        marginTop: "4%",
         borderWidth: 1,
         borderColor: "#FFD700",
-        borderTopLeftRadius: 50,
-        borderTopRightRadius: 50,
-        marginHorizontal: 20,
-        elevation: 3, // Shadow
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
+        borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40,
+        marginHorizontal: 15,
+        elevation: 15, // Shadow
     },
     buttonText: {
         color: "white",
@@ -157,9 +174,11 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     headerName: {
-        fontSize: 16,
+        fontSize: 20,
         marginTop: 10,
+        fontWeight:'bold',
         color: "#87CEEB",
+        textAlign:'center',
     },
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,

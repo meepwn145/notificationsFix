@@ -81,6 +81,8 @@ export default function ReservationScreen({ route }) {
             saveReservedSlots();
         }
     }, [reservedSlots, user.email]);
+
+    
     
     useEffect(() => {
         const fetchUserData = async () => {
@@ -674,7 +676,7 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 5,
         paddingHorizontal: 10,
 
     },
@@ -723,7 +725,7 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingTop: 25,
         marginTop: "-20%",
-        height: "36%",
+        height: "40%",
         elevation: 2,
         shadowColor: "#000",
         shadowOpacity: 0.1,

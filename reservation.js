@@ -37,7 +37,7 @@ export default function ReservationScreen({ route }) {
     const [alertShown, setAlertShown] = useState(false); 
     const [fee, setFee] = useState('');
     const [successfullyReservedSlots, setSuccessfullyReservedSlots] = useState([]);
-
+    
     useEffect(() => {
         const reservationsRef = collection(db, "reservations");
         const unsubscribe = onSnapshot(reservationsRef, (snapshot) => {
@@ -347,111 +347,116 @@ export default function ReservationScreen({ route }) {
             unsubscribeRes();
         };
     }, [db, item.managementName]);
-        const handleReservation = async () => {
-            if (reservedSlots.length > 0) {
-                Alert.alert("Reservation Limit", "You can only reserve one slot at a time.", [
-                    { text: "OK", style: "default" },
-                ]);
-                return;
-            }
-        
-            if (selectedSlot !== null) {
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== 'granted') {
-                    alert('Sorry, we need camera roll permissions to make this work!');
-                    return;
-                }
-        
-                const result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    aspect: [4, 3],
-                    quality: 1,
-                });
-        
-                if (result.cancelled) {
-                    Alert.alert('Image Upload', 'You need to upload an image to proceed with the reservation.');
-                    return;
-                }
-        
-                // Accessing the uri from the assets array
-                const uri = result.assets[0].uri;
-                console.log('Image URI:', uri); // Ensure URI is logged here
-        
-                Alert.alert(
-                    'Confirm Reservation',
-                    `Upload this image and confirm reservation for Slot ${selectedSlot}?`,
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                            text: 'OK',
-                            onPress: async () => {
-                                let floorTitle = "General Parking";
-                                let slotIndex = -1;
-                                slotSets.forEach(set => {
-                                    set.slots.forEach((slot, index) => {
-                                        if (slot.slotNumber === selectedSlot) {
-                                            floorTitle = set.title;
-                                            slotIndex = index;
-                                        }
-                                    });
-                                });
-                                try {
-                                    // Upload the image and get the URL
-                                    const imageUrl = await uploadImageToStorage(uri, user.email, selectedSlot);
-        
-                                    // Reservation data, including the image URL
-                                    const reservationData = {
-                                        userEmail: email,
-                                        carPlateNumber: plateNumber || '',
-                                        slotId: selectedSlot,
-                                        managementName: item.managementName,
-                                        timestamp: new Date(),
-                                        status: 'Reserved',
-                                        floorTitle,
-                                        currentLocation: location,
-                                        imageUri: imageUrl  // Store the image URL
-                                    };
-        
-                                    // Create a unique document name using slot and selectedSlot
-                                    const uniqueDocName = `slot_${floorTitle}_${slotIndex}`;
-                                    const reservationsRef = collection(db, 'reservations');
-                                    await setDoc(doc(reservationsRef, uniqueDocName), reservationData, { merge: true });
-        
-                                    // Update the local state to reflect the reservation
-                                    setReservedSlots([...reservedSlots, { slotNumber: selectedSlot, managementName: item.managementName, parkingPay: item.parkingPay }]);
-                                    setSelectedSlot(null);
-        
-                                    // Optionally, log the reservation and image proof in a 'notifications' collection
-                                    const notificationsRef = collection(db, 'notifications');
-                                    const notificationData = {
-                                        type: 'reservation',
-                                        details: `A new reservation for slot ${selectedSlot} has been made with image proof.`,
-                                        timestamp: new Date(),
-                                        managementName: item.managementName,
-                                        userEmail: email,
-                                        imageUri: imageUrl  // Include the image URL in the notification
-                                    };
-                                    await addDoc(notificationsRef, notificationData);
-        
-                                    Alert.alert('Reservation Successful', `Slot ${selectedSlot} at ${item.managementName} reserved successfully with image proof!`);
-                                    setSuccessfullyReservedSlots([...successfullyReservedSlots, selectedSlot]);
-                                } catch (error) {
-                                    console.error('Error saving reservation:', error);
-                                    Alert.alert('Reservation Failed', 'Could not complete your reservation. Please try again.');
-                                }
-                            },
-                        },
-                    ],
-                    { cancelable: false }
-                );
-            } else {
-                Alert.alert('Invalid Reservation', 'Please select a valid slot before reserving.', [
-                    { text: 'OK', style: 'default' },
-                ]);
-            }
-        };
-        
+    const handleReservation = async () => {
+        if (reservedSlots.length > 0) {
+            Alert.alert("Reservation Limit", "You can only reserve one slot at a time.", [
+                { text: "OK", style: "default" },
+            ]);
+            return;
+        }
+    
+        if (selectedSlot !== null) {
+            Alert.alert(
+                `This action is non - refundable!`,
+                `You can send your payment via Gcash at ${item.contact} and upload your proof of payment to secure your spot!`,
+                [
+                    { text: 'No', style: 'cancel' },
+                    {
+                        text: 'Yes',
+                        onPress: async () => {
+                            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                            if (status !== 'granted') {
+                                alert('Sorry, we need camera roll permissions to make this work!');
+                                return;
+                            }
+    
+                            const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                allowsEditing: true,
+                                aspect: [4, 3],
+                                quality: 1,
+                            });
+    
+                            if (result.cancelled) {
+                                Alert.alert('Image Upload', 'You need to upload an image to proceed with the reservation.');
+                                return;
+                            }
+    
+                            const uri = result.assets[0].uri;
+                            console.log('Image URI:', uri); // Ensure URI is logged here
+    
+                            Alert.alert(
+                                'Confirm Reservation',
+                                `Upload this image and confirm reservation for Slot ${selectedSlot}?`,
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'OK',
+                                        onPress: async () => {
+                                            let floorTitle = "General Parking";
+                                            let slotIndex = -1;
+                                            slotSets.forEach(set => {
+                                                set.slots.forEach((slot, index) => {
+                                                    if (slot.slotNumber === selectedSlot) {
+                                                        floorTitle = set.title;
+                                                        slotIndex = index;
+                                                    }
+                                                });
+                                            });
+                                            try {
+                                                const imageUrl = await uploadImageToStorage(uri, user.email, selectedSlot);
+                                                const reservationData = {
+                                                    userEmail: email,
+                                                    carPlateNumber: plateNumber || '',
+                                                    slotId: slotIndex,
+                                                    managementName: item.managementName,
+                                                    timestamp: new Date(),
+                                                    status: 'Reserved',
+                                                    floorTitle,
+                                                    currentLocation: location,
+                                                    imageUri: imageUrl
+                                                };
+    
+                                                const uniqueDocName = `slot_${floorTitle}_${slotIndex}`;
+                                                const reservationsRef = collection(db, 'reservations');
+                                                await setDoc(doc(reservationsRef, uniqueDocName), reservationData, { merge: true });
+                                                setReservedSlots([...reservedSlots, { slotNumber: selectedSlot, managementName: item.managementName, parkingPay: item.parkingPay }]);
+                                                setSelectedSlot(null);
+    
+                                                const notificationsRef = collection(db, 'notifications');
+                                                const notificationData = {
+                                                    type: 'reservation',
+                                                    details: `A new reservation for slot ${selectedSlot} has been made with image proof.`,
+                                                    timestamp: new Date(),
+                                                    managementName: item.managementName,
+                                                    userEmail: email,
+                                                    imageUri: imageUrl
+                                                };
+                                                await addDoc(notificationsRef, notificationData);
+    
+                                                Alert.alert('Reservation Successful', `Slot ${selectedSlot} at ${item.managementName} reserved successfully with image proof!`);
+                                                setSuccessfullyReservedSlots([...successfullyReservedSlots, selectedSlot]);
+                                            } catch (error) {
+                                                console.error('Error saving reservation:', error);
+                                                Alert.alert('Reservation Failed', 'Could not complete your reservation. Please try again.');
+                                            }
+                                        },
+                                    },
+                                ],
+                                { cancelable: false }
+                            );
+                        }
+                    },
+                ],
+                { cancelable: false }
+            );
+        } else {
+            Alert.alert('Invalid Reservation', 'Please select a valid slot before reserving.', [
+                { text: 'OK', style: "default" },
+            ]);
+        }
+    };
+     
     const handleCancelReservation = async () => {
         const reservedSlot = reservedSlots.find(slot => slot.slotNumber === selectedSlot && slot.managementName === item.managementName);
     

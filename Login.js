@@ -52,7 +52,7 @@ export function LoginScreen() {
 
       // Step 2: Register the Indie ID for Native Notify
       try {
-        await registerIndieID(user.email, 23768, '6W2xCaWiR8rBZCBR7UUCkv');
+        await registerIndieID(user.email, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
         console.log('Indie ID registration successful for email:', user.email);
       } catch (error) {
         console.error('Error during Indie ID registration:', error);

@@ -49,10 +49,12 @@ export default function ReservationScreen({ route }) {
         };
     }, []);
 
+    const USER_RESERVED_SLOTS_KEY = `reservedSlots_${user.email}`;
+
     useEffect(() => {
         const loadReservedSlots = async () => {
             try {
-                const storedReservedSlots = await AsyncStorage.getItem("reservedSlots");
+                const storedReservedSlots = await AsyncStorage.getItem(USER_RESERVED_SLOTS_KEY);
                 if (storedReservedSlots) {
                     setReservedSlots(JSON.parse(storedReservedSlots));
                 }
@@ -60,22 +62,28 @@ export default function ReservationScreen({ route }) {
                 console.error("Error loading reserved slots from AsyncStorage:", error);
             }
         };
-
-        loadReservedSlots();
-    }, []);
-
+    
+        if (user.email) {
+            loadReservedSlots();
+        }
+    }, [user?.email]);
+    
     useEffect(() => {
         const saveReservedSlots = async () => {
             try {
-                await AsyncStorage.setItem("reservedSlots", JSON.stringify(reservedSlots));
+                await AsyncStorage.setItem(USER_RESERVED_SLOTS_KEY, JSON.stringify(reservedSlots));
             } catch (error) {
                 console.error("Error saving reserved slots to AsyncStorage:", error);
             }
         };
+    
+        if (user.email) {
+            saveReservedSlots();
+        }
+    }, [reservedSlots, user.email]);
 
-        saveReservedSlots();
-    }, [reservedSlots]);
-
+    
+    
     useEffect(() => {
         const fetchUserData = async () => {
             if (user?.email) {
@@ -668,7 +676,7 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 5,
         paddingHorizontal: 10,
 
     },
@@ -717,7 +725,7 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingTop: 25,
         marginTop: "-20%",
-        height: "36%",
+        height: "40%",
         elevation: 2,
         shadowColor: "#000",
         shadowOpacity: 0.1,

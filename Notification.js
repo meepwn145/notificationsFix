@@ -1,253 +1,180 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth } from './config/firebase';
-import { Button } from 'react-native-elements';
+import React, { useState, useEffect, useContext } from 'react';
+import { ScrollView, TouchableOpacity, Alert, Text, StyleSheet, ActivityIndicator, Image, View } from 'react-native';
+import { getUnreadIndieNotificationInboxCount, getIndieNotificationInbox, deleteIndieNotificationInbox } from 'native-notify';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import UserContext from "./UserContext";
 
-export default function Notifications() {
-  const navigation = useNavigation();
-  const [loading, setLoading] = useState(true);
-  const [resStatusLogs, setResStatusLogs] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+export const fetchUnreadCount = async (user) => {
+  if (user && user.email) {
+    try {
+      const unreadCount = await getUnreadIndieNotificationInboxCount(user.email, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
+      console.log("Unread notifications", unreadCount);
+      return unreadCount;
+    } catch (error) {
+      console.error("Error fetching unread notification count:", error);
+      return 0;
+    }
+  }
+  return 0;
+};
 
-  const toggleSelection = (id) => {
-    setSelectedId(selectedId === id ? null : id); // Toggle selection
-  };
+export default function NotificationInbox() {
+  const [data, setData] = useState([]);
+  const { user } = useContext(UserContext);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log('User:', user); // Add this line
-        const userID = user.name;
+    const fetchAndSetUnreadCount = async () => {
+      const count = await fetchUnreadCount(user);
+      setUnreadNotificationCount(count);
+      console.log("unreadCount: ", count);
+    };
 
-        // Construct the query for all resStatus logs for the user
-        const q = query(collection(db, 'resStatus'), where('userName', '==', userID), orderBy('timestamp', 'desc'));
+    if (user && user.email) {
+      fetchAndSetUnreadCount();
+    }
+  }, [user?.email]);
 
-        const unsubscribeLogs = onSnapshot(q, (snapshot) => {
-          if (!snapshot.empty) {
-            const logs = snapshot.docs.map(doc => {
-              const data = doc.data();
-              return {
-                id: doc.id,
-                managementName: data.managementName,
-                paymentStatus: data.paymentStatus,
-                timestamp: data.timestamp,
-                timeIn: data.timeIn,
-                timeOut: data.timeOut,
-                slotId: data.slotId,
-                carPlateNumber: data.carPlateNumber,
-                floorTitle: data.floorTitle,
-                resStatus: data.resStatus,
-                status: data.status,
-                userName: data.userName,
-              };
-            });
-            setResStatusLogs(logs);
-          } else {
-            setResStatusLogs([]);
-          }
-          setLoading(false);
-        }, (err) => {
-          console.error(`Encountered error: ${err}`);
-          setLoading(false);
-        });
-
-        return () => unsubscribeLogs();
-      } else {
-        console.error('User is not authenticated.');
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-
-  if (loading) {
-    return <View style={styles.container}><Text>Loading...</Text></View>;
-  }
-
-  const formatDuration = (timeIn, timeOut) => {
-    if (!timeIn || !timeOut) return 'N/A';
-
-    const start = new Date(timeIn.seconds * 1000);
-    const end = new Date(timeOut.seconds * 1000);
-    const duration = end - start;
-
-    // Convert milliseconds to minutes
-    const minutes = Math.floor(duration / 60000);
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-
-    return `${hours}h ${remainingMinutes}m`;
-  };
-
-  const deleteNotification = async (id) => {
+  const fetchNotifications = async () => {
+    setIsLoading(true);
     try {
-      // Delete the notification from the database
-      await deleteDoc(doc(db, 'resStatus', id));
-      console.log('Notification deleted successfully');
+      if (!user || !user.email) {
+        throw new Error("User or user email is undefined");
+      }
+      const notifications = await getIndieNotificationInbox(user.email, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
+      if (!notifications) {
+        throw new Error("Notifications fetch returned undefined");
+      }
+      const storedReadStatus = await AsyncStorage.getItem('readNotifications');
+      const readNotifications = storedReadStatus ? JSON.parse(storedReadStatus) : {};
+
+      const notificationsWithReadStatus = notifications.map(notification => ({
+        ...notification,
+        isRead: !!readNotifications[notification.notification_id]
+      }));
+      setData(notificationsWithReadStatus);
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.error("Error fetching notifications: ", error);
+      Alert.alert("Error", "Failed to load notifications: " + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (user && user.email) {
+      fetchNotifications();
+    }
+  }, [user?.email]);
+
+  const markAsRead = async (notificationId) => {
+    try {
+      const updatedNotifications = data.map(notification =>
+        notification.notification_id === notificationId ? { ...notification, isRead: true } : notification
+      );
+      setData(updatedNotifications);
+
+      const readNotifications = await AsyncStorage.getItem('readNotifications');
+      const updatedReadNotifications = readNotifications ? JSON.parse(readNotifications) : {};
+      updatedReadNotifications[notificationId] = true;
+      await AsyncStorage.setItem('readNotifications', JSON.stringify(updatedReadNotifications));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const deleteNotification = async (notificationId) => {
+    try {
+      await deleteIndieNotificationInbox(user.email, notificationId, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
+      const filteredNotifications = data.filter(notification => notification.notification_id !== notificationId);
+      setData(filteredNotifications);
+
+      const readNotifications = await AsyncStorage.getItem('readNotifications');
+      const updatedReadNotifications = readNotifications ? JSON.parse(readNotifications) : {};
+      delete updatedReadNotifications[notificationId];
+      await AsyncStorage.setItem('readNotifications', JSON.stringify(updatedReadNotifications));
+
+      Alert.alert("Success", "Notification deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      Alert.alert("Error", "Failed to delete the notification.");
+    }
+  };
+
+  const handlePressNotification = (notification) => {
+    Alert.alert(
+      "Notification Detail", 
+      notification.message,
+      [
+        { text: "Close", onPress: () => markAsRead(notification.notification_id), style: "cancel" },
+        { text: "Delete", onPress: () => deleteNotification(notification.notification_id) }
+      ],
+      { cancelable: false }
+    );
+  };
+
   return (
-    <ScrollView style={styles.backgroundColorMain}>
-      <View style={styles.container}>
-       <Image
-      source={{ uri: 'https://i.imgur.com/WwPGlNh.png' }}
-      style={styles.backgroundImage}
-    />
-    <Image
-    source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }}
-      style={[styles.backgroundImage, {marginTop: 100}]}
-    />
-    <Text style={{marginTop: 6, textAlign: 'center', fontSize: 50, fontWeight: 'bold', color: 'white', marginVertical: 10}}>Notification</Text>
-    <View style={styles.formContainer}></View>
-
-   
-      <View style={styles.content}>
-        {parkingLogs.length > 0 ? (
-          parkingLogs.map((log) => (
+    <View style={styles.fullScreen}>
+      <Image source={{ uri: 'https://i.imgur.com/Y6azwpB.png' }} style={styles.backgroundImage} />
+      <ScrollView style={styles.scrollView}>
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : data.length > 0 ? (
+          data.map((notification, index) => (
             <TouchableOpacity
-              key={log.id}
-              style={styles.notification}
-              onPress={() => toggleSelection(log.id)}
+              key={index}
+              style={notification.isRead ? styles.notificationCard : styles.unreadNotificationCard}
+              onPress={() => handlePressNotification(notification)}
             >
-              <Text style={styles.notificationHeader1}>
-                Parked at: {log.managementName}
-              </Text>
-              <Text style={styles.notificationText}>
-                Payment Status: {log.paymentStatus}
-              </Text>
-              <Text style={styles.notificationText}>
-                Duration: {formatDuration(log.timeIn, log.timeOut)}
-              </Text>
-              <Text style={styles.notificationDate}>
-                Date: {new Date(log.timestamp.seconds * 1000).toLocaleDateString()} 
-                {'\ '} {log.timeIn ? new Date(log.timeIn.seconds * 1000).toLocaleTimeString() : 'N/A'} {'\ '}
-                {log.timeOut ? new Date(log.timeOut.seconds * 1000).toLocaleTimeString() : 'N/A'}
-              </Text>
-              {selectedId === log.id && (
-                <TouchableOpacity
-                  onPress={() => deleteNotification(log.id)}
-                  style={styles.deleteButton}
-                >
-                    <Image 
-                  source={{ uri: 'https://i.imgur.com/92JPGbX.png' }}
-                      style={styles.deleteButtonImage}
-                    />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text style={[styles.notificationText, { textAlign: 'center' }]}>No new reservation notification</Text>
-          )}
-        </View>
-
-        <View>
-          <TouchableOpacity onPress={() => navigation.navigate('Dashboard')} style={styles.buttonBack}>
-            <Text style={styles.buttonTextBack}>Back</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
+              <Text style={styles.title}>{notification.title}</Text>
+              <Text style={styles.message}>{notification.message}</Text>
+              <Text style={styles.date}>{notification.date}</Text>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={styles.message}>No notifications found.</Text>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundColorMain: {
-    backgroundColor: 'white',
-  },
-  container: {
+  fullScreen: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
-  navbarTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  content: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center', // Center vertically
-    alignItems: 'center',
-  },
-  notification: {
-    marginTop: '15%',
-    marginVertical: 5,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    width: '90%',
-    alignItems: 'center', // Center horizontally
-    backgroundColor: '#fff', // or any other color for non-clicked notification
-  },
-  notificationHeader1: {
-    fontSize: 16,
-    padding: 10,
-    fontWeight: 'bold',
-  },
-  notificationText: {
-    fontSize: 16,
-    padding: 10,
-  },
-  notificationTextHeader: {
-    fontSize: 16,
-    padding: 10,
-    textAlign: 'center',
-  },
-  notificationDate: {
-    fontSize: 14,
-    padding: 10,
-    color: 'gray',
-  },
-  buttonBack: {
-    borderColor: '#87CEEB',
-    backgroundColor: 'white',
-    paddingVertical: 15,
-    borderRadius: 100,
-    alignItems: 'center',
-    borderWidth: 2,
-    marginTop: '70%', // Adjusted marginTop
-    marginBottom: 30, // Adjusted marginBottom
-    width: '90%',
-    alignSelf: 'center',
-  },
-  buttonTextBack: {
-    color: '#87CEEB',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  notificationClicked: {
-    backgroundColor: 'gray',
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 120,
-    right: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-  },
-  deleteButtonImage: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
+    backgroundColor: 'transparent',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  notificationCard: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  unreadNotificationCard: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    backgroundColor: '#e0f7fa', // Light blue background for unread notifications
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  message: {
+    fontSize: 16,
+  },
+  date: {
+    fontSize: 12,
+    color: 'gray',
   },
 });

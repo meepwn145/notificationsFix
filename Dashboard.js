@@ -9,11 +9,16 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./config/firebase";
 import {unregisterIndieDevice} from 'native-notify';
 import { auth } from './config/firebase'; // Make sure you import auth from firebase
+import { useMapLogic } from "./utilities/useMapLogic";
+import { getUnreadIndieNotificationInboxCount } from 'native-notify';
+import { fetchUnreadCount } from "./Notification";  
 
 export default function Dashboard() {
     const navigation = useNavigation();
+    const [selectedLocation, setUnreadNotifications] = useState(null);
     const { user } = useContext(UserContext);
-
+    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+    const { recommendedPlaces } = useMapLogic();
     const goToProfile = () => {
         navigation.navigate("Profiles", { user });
     };
@@ -23,39 +28,61 @@ export default function Dashboard() {
     const [isActive, setIsActive] = useState(false);
     const [reservationConfirmed, setReservationConfirmed] = useState(false); // Track reservation status
 
-    const carouselImages = [
-        { image: { uri: 'https://www.saifulbouquet.com/wp-content/uploads/2020/04/featured-DSC00889.jpg' }, text: "Oakridge Parking Lot" },
-        { image:  { uri: 'https://media-cdn.tripadvisor.com/media/photo-s/10/08/e5/a6/mall-exterior.jpg' }, text: "Country Mall" },
-        { image:  { uri: 'https://static-ph.lamudi.com/static/media/bm9uZS9ub25l/2x2x5x880x396/b82c78f8faadef.jpg' }, text: "Crossroads Carpark" },
-        { image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSfMENYcdscVVk9zQdRBXEnelebDd04UbZ9KW36V9wwLw&s' }, text: "Banilad Town Centre" },
-        { image:  { uri: 'https://i.pinimg.com/736x/5d/e2/c5/5de2c5ef0e446ddb39f0d090dcf2c033.jpg' }, text: "Pacific Mall" },
-    ];
+    
 
     useEffect(() => {
         const fetchRecommended = async () => {
-            const promises = [];
-
-            for (const c of carouselImages) {
-                const q = query(collection(db, "establishments"), where("managementName", "==", c.text));
-                promises.push(getDocs(q));
-            }
-
+            // Assume 'establishments' collection stores 'managementName' which we need to fetch
+            const establishmentsSnapshot = await getDocs(collection(db, "establishments"));
+            const establishments = establishmentsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+    
+            // Fetch establishments again but now filtered by each unique managementName
+            const promises = establishments.map(establishment => {
+                const q = query(collection(db, "establishments"), where("managementName", "==", establishment.managementName));
+                return getDocs(q);
+            });
+    
             const snapshots = await Promise.all(promises);
-            const recommendations = [];
-            for (const snap of snapshots) {
-                for (const doc of snap.docs) {
-                    const establishment = doc.data();
-                    recommendations.push({
-                        id: doc.id,
-                        ...establishment,
-                    });
-                }
-            }
+            const recommendations = snapshots.flatMap(snap => snap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                profileImageUrl: doc.data().profileImageUrl,
+                managementName: doc.data().managementName
+            })));
+    
             setRecommended(recommendations);
         };
-
+    
         fetchRecommended();
     }, []);
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchUnreadNotifications();
+        }, 1000);  // Poll every minute
+
+        return () => clearInterval(interval);
+    }, [user?.email]);
+
+    const fetchUnreadNotifications = async () => {
+        if (user?.email) {
+            try {
+                const count = await getUnreadIndieNotificationInboxCount(user.email, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
+                setUnreadNotificationCount(count);
+            } catch (error) {
+                console.error("Error fetching unread notification count:", error);
+            }
+        }
+    };
+
+    // Call initially and on email change
+    useEffect(() => {
+        fetchUnreadNotifications();
+    }, [user?.email]);
+
 
     useEffect(() => {
         if (reservationConfirmed) {
@@ -63,14 +90,19 @@ export default function Dashboard() {
         }
     }, [reservationConfirmed]);
 
-    const handleCarouselCard = (text) => {
-        setSidebarVisible(false);
-        for (const r of recommended) {
-            if (text === r.managementName) {
-                navigation.navigate("Map", { from: r });
-            }
+    const handleCarouselCard = (item) => {
+        console.log("Selected item:", item);  // Debug log to see what's being passed
+    
+        if (!item || !item.managementName) {
+            console.error("No valid establishment or management name found:", item);
+            return;  // Prevent further execution if item is not valid
         }
+    
+        navigation.navigate("Details", { item: item });
     };
+    
+    
+
 
     const handleCardClick = (screenName) => {
         setSidebarVisible(false);
@@ -90,16 +122,18 @@ export default function Dashboard() {
 
     useEffect(() => {
         scrollInterval.current = setInterval(() => {
-            if (flatListRef.current) {
+            if (flatListRef.current && recommendedPlaces.length > 0) {
+                currentIndex = (currentIndex + 1) % recommendedPlaces.length; // Update the index
                 flatListRef.current.scrollToIndex({
-                    index: (currentIndex + 1) % carouselImages.length,
+                    index: currentIndex,
                     animated: true,
                 });
             }
-        }, 2000);
-
+        }, 5000);
+    
         return () => clearInterval(scrollInterval.current);
-    }, []);
+    }, [recommendedPlaces.length]);
+
 
     const handleViewRecentParked = () => {
         navigation.navigate("Map");
@@ -149,17 +183,20 @@ export default function Dashboard() {
         getCurrentLoc();
     }, []);
 
-    const renderCarouselItem = ({ item }) => {
+    const renderCarouselItem = ({ managementName, item }) => {
         return (
-            <TouchableOpacity onPress={() => handleCarouselCard(item.text)}>
+            <TouchableOpacity onPress={() => handleCarouselCard(item)}>
                 <View style={styles.carouselItemContainer}>
-                    <Image source={item.image} style={styles.carouselImage} />
-                    <Text style={styles.carouselText}>{item.text}</Text>
+                <Image  source={item.profileImageUrl ? { uri: item.profileImageUrl } : require("./images/SPOTWISE.png")} style={styles.carouselImage} />
+                    <Text style={styles.carouselText}>{item.managementName}</Text>
                 </View>
             </TouchableOpacity>
         );
     };
 
+    useEffect(() => {
+        console.log("Recommended places awsad:", recommendedPlaces);
+    }, [recommendedPlaces]);
     const renderParkedHistoryItem = ({ item }) => {
         return (
             <View style={styles.historyItemContainer}>
@@ -206,7 +243,7 @@ export default function Dashboard() {
             }
     
             // Call Native Notify to unregister the device
-            await unregisterIndieDevice(userEmail, 23768, '6W2xCaWiR8rBZCBR7UUCkv');
+            await unregisterIndieDevice(userEmail, 24190, '7xmUkgEHBQtdSvSHDbZ9zd');
             console.log('Indie ID unregistration successful for email:', userEmail);
     
             // Proceed with Firebase sign-out or other cleanup actions
@@ -228,9 +265,9 @@ export default function Dashboard() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${'6W2xCaWiR8rBZCBR7UUCkv'}`, // Add backticks for template literal
+                    'Authorization': `Bearer ${'6W2xCaWiR8rBZ7xmUkgEHBQtdSvSHDbZ9zdCBR7UUCkv'}`, // Add backticks for template literal
                 },
-                body: JSON.stringify({ userId: user.email, appId: 23768 }) // Proper JSON format
+                body: JSON.stringify({ userId: user.email, appId: 24190 }) // Proper JSON format
             });
     
             if (!response.ok) {
@@ -263,7 +300,7 @@ export default function Dashboard() {
                     <View>
                         <FlatList
                             ref={flatListRef}
-                            data={carouselImages}
+                            data={recommendedPlaces}
                             horizontal
                             pagingEnabled
                             showsHorizontalScrollIndicator={false}
@@ -313,10 +350,19 @@ export default function Dashboard() {
                             <Text style={styles.tabBarText}>Search</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.tabBarButton} onPress={() => handleCardClick("Notifications")}>
-                            <AntDesign name="bells" size={24} color="#A08C5B" />
-                            <Text style={styles.tabBarText}>Notifications</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tabBarButton} onPress={() => navigation.navigate("Notifications", {user})}>
+    <View style={{ position: 'relative' }}>
+        <AntDesign name="bells" size={24} color="#A08C5B" />
+        {unreadNotificationCount > 0 && (
+            <View style={styles.notificationBubble}>
+                <Text style={styles.notificationCount}>{unreadNotificationCount}</Text>
+            </View>
+        )}
+    </View>
+    <Text style={styles.tabBarText}>Notifications</Text>
+</TouchableOpacity>
+
+
 
                         <TouchableOpacity style={styles.tabBarButton} onPress={handleBarsClick}>
                             <AntDesign name="bars" size={24} color="#A08C5B" />
@@ -585,5 +631,22 @@ const styles = StyleSheet.create({
     },
     inactive: {
         backgroundColor: "gray",
+    },
+    notificationBubble: {
+        position: 'absolute',
+        right: -6, // Adjust based on your UI needs
+        top: -3, // Adjust based on your UI needs
+        backgroundColor: 'red',
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1,
+    },
+    notificationCount: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
 });

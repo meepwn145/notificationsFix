@@ -51,7 +51,7 @@ export default function Search() {
   const renderItem = ({ item }) => (
     <TouchableOpacity onPress={() => handleItemClick(item)}>
       <View style={styles.item}>
-        <Image source={{ uri: item.profileImageUrl }} style={styles.itemImage} />
+      <Image  source={item.profileImageUrl ? { uri: item.profileImageUrl } : require("./images/SPOTWISE.png")} style={styles.itemImage} />
         <View style={{flex:1}}>
         <Text style={styles.itemName}>{item.companyAddress}</Text>
         </View>
@@ -71,9 +71,9 @@ export default function Search() {
     />
     <Image
       source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }}
-      style={[styles.backgroundImage, { borderTopLeftRadius: 130, marginTop: 100}]}
+      style={[styles.backgroundImage, { borderTopLeftRadius: 75, borderTopRightRadius: 75, marginTop: 100}]}
     />
-    <Text style={{marginTop: 6, marginLeft: '35%', fontSize: 50, fontWeight: 'bold', color: 'white', marginVertical: 10}}>Search</Text>
+    <Text style={{marginTop: 6, marginLeft: '30%', fontSize: 50, fontWeight: 'bold', color: 'white', marginVertical: 10}}>Search</Text>
     <View style={styles.formContainer}>
  
       <View style={styles.searchContainerStyle}>

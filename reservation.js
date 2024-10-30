@@ -10,10 +10,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LocationStore } from "./store";
 import { useStoreState } from "pullstate";
 import RNPickerSelect from 'react-native-picker-select';
+import * as ImagePicker from 'expo-image-picker';
+
 
 const SLOT_PRICE = 30;
 
 export default function ReservationScreen({ route }) {
+    const [selectedImageUri, setSelectedImageUri] = useState(null);
     const { item } = route.params;
     const navigation = useNavigation();
     const { user } = useContext(UserContext);
@@ -325,25 +328,42 @@ export default function ReservationScreen({ route }) {
             unsubscribeRes();
         };
     }, [db, item.managementName]);
-
     const handleReservation = async () => {
-        // Prevent multiple reservations
         if (reservedSlots.length > 0) {
             Alert.alert("Reservation Limit", "You can only reserve one slot at a time.", [
                 { text: "OK", style: "default" },
             ]);
             return;
         }
-
+    
         if (selectedSlot !== null) {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Sorry, we need camera roll permissions to make this work!');
+                return;
+            }
+    
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+    
+            if (result.cancelled) {
+                Alert.alert('Image Upload', 'You need to upload an image to proceed with the reservation.');
+                return;
+            }
+    
+            // Accessing the uri from the assets array
+            const uri = result.assets[0].uri;
+            console.log('Image URI:', uri); // Ensure URI is logged here
+    
             Alert.alert(
                 'Confirm Reservation',
-                `Are you sure you want to reserve Slot ${selectedSlot}?`,
+                `Upload this image and confirm reservation for Slot ${selectedSlot}?`,
                 [
-                    {
-                        text: 'Cancel',
-                        style: 'cancel',
-                    },
+                    { text: 'Cancel', style: 'cancel' },
                     {
                         text: 'OK',
                         onPress: async () => {
@@ -366,26 +386,28 @@ export default function ReservationScreen({ route }) {
                                 status: 'Reserved',
                                 currentLocation: location,
                                 floorTitle,
+                                imageUri: uri  // Now using the correctly accessed URI
                             };
-
+    
                             try {
                                 const reservationsRef = collection(db, 'reservations');
                                 const uniqueDocName = `slot_${floorTitle}_${slotIndex}`;
                                 await setDoc(doc(reservationsRef, uniqueDocName), reservationData, { merge: true });
-
+    
                                 setReservedSlots([...reservedSlots, { slotNumber: selectedSlot, managementName: item.managementName, parkingPay: item.parkingPay }]);
                                 setSelectedSlot(null);
-
+    
                                 const notificationsRef = collection(db, 'notifications');
                                 const notificationData = {
                                     type: 'reservation',
-                                    details: `A new reservation for slot ${selectedSlot} has been made`,
+                                    details: `A new reservation for slot ${selectedSlot} has been made with image proof.`,
                                     timestamp: new Date(),
                                     managementName: item.managementName,
                                     userEmail: email,
+                                    imageUri: uri  // Include URI in notifications
                                 };
                                 await addDoc(notificationsRef, notificationData);
-                                Alert.alert('Reservation Successful', `Slot ${selectedSlot} at ${item.managementName} reserved successfully!`);
+                                Alert.alert('Reservation Successful', `Slot ${selectedSlot} at ${item.managementName} reserved successfully with image proof!`);
                                 setSuccessfullyReservedSlots([...successfullyReservedSlots, selectedSlot]);
                             } catch (error) {
                                 console.error('Error saving reservation:', error);
@@ -402,7 +424,9 @@ export default function ReservationScreen({ route }) {
             ]);
         }
     };
-
+    
+     
+    
     const handleCancelReservation = async () => {
         const reservedSlot = reservedSlots.find(slot => slot.slotNumber === selectedSlot && slot.managementName === item.managementName);
     
@@ -460,12 +484,11 @@ export default function ReservationScreen({ route }) {
         <View style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContainer}>
                 <Image source={{ uri: 'https://i.imgur.com/WwPGlNh.png' }} style={styles.backgroundImage} />
-                <Image source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }} style={[styles.backgroundImage, { borderTopLeftRadius: 80, marginTop: 100, borderTopRightRadius: 80 }]} />
+                <Image source={{ uri: 'https://i.imgur.com/Tap1nZy.png' }} style={[styles.backgroundImage, { borderTopLeftRadius: 80, marginTop: 50, borderTopRightRadius: 80 }]} />
                 <Image
                     source={require("./images/backgroundWhite.png")}
                     style={[styles.backgroundImage, { borderTopLeftRadius: 130, marginTop: 100 }]}
                 />
-                <Text style={{ alignSelf: "center", fontSize: 40, fontWeight: "bold", color: "white", marginVertical: 10 }}>Reservation</Text>
                 <View style={styles.container}>
                     {isLoading ? (
                         <Text>Loading slots...</Text>

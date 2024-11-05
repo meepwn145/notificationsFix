@@ -293,8 +293,8 @@ export default function Dashboard() {
             <View style={styles.container}>
                 <Image style={styles.navbar} />
                 <View style={styles.logoContainer}>
-                    <Text style={styles.logoText}>Explore more available Parking Lots</Text>
-                    <Text style={styles.logoSubText}>Find and Reserve Parking Spaces</Text>
+                    <Text style={styles.logoText}>Recommended nearby parking spaces</Text>
+                    <Text style= {styles.logoSubText}>Secure your spots now!</Text>
                 </View>
                 <View style={styles.container}>
                     <View>
@@ -312,13 +312,13 @@ export default function Dashboard() {
                             }}
                         />
                     </View>
-                    
+                    <View style={styles.separatorLine} />
                     <View style={{ maxWidth: 400, marginBottom: 20 }}>
                         <View >
                         <View style={{ justifyContent: 'center', alignItems: 'center'}}>
                             <View style={styles.additionalCard}>
-                                <Text style={styles.additionalCardTitle}>Explore</Text>
-                                <Text style={styles.additionalCardContent}>More parking areas are available here!!</Text>
+                                <Text style={styles.additionalCardTitle}>Explore more parking places</Text>
+                                <Text style={styles.additionalCardContent}>More parking areas are available here!</Text>
                                 <TouchableOpacity style={styles.additionalButton} onPress={() => navigation.navigate("Map")}>
                                 <Text style={styles.additionalButtonText}>Explore</Text>
                                 </TouchableOpacity>
@@ -361,44 +361,42 @@ export default function Dashboard() {
     </View>
     <Text style={styles.tabBarText}>Notifications</Text>
 </TouchableOpacity>
-
-
-
                         <TouchableOpacity style={styles.tabBarButton} onPress={handleBarsClick}>
                             <AntDesign name="bars" size={24} color="#A08C5B" />
                             <Text style={styles.tabBarText}>Menu</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-
                 <Modal animationType="fade" transparent={true} visible={isSidebarVisible}>
-                    <View style={styles.sidebarContainer}>
-                        <TouchableWithoutFeedback onPress={handleBarsClick}>
-                            <View style={styles.sidebar}>
-                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Feedback")}>
-                                    <Image source={{ uri: 'https://i.imgur.com/c4io4vB.jpeg' }} style={styles.sidebarIcon} />
-                                    <Text style={styles.sidebarButtonText}>Feedback</Text>
-                                </TouchableOpacity>
+    <TouchableWithoutFeedback onPress={() => setSidebarVisible(false)}>
+        <View style={styles.modalBackground}>
+            <TouchableWithoutFeedback>
+                <View style={styles.sidebar}>
+                    <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Feedback")}>
+                        <Image source={{ uri: 'https://i.imgur.com/c4io4vB.jpeg' }} style={styles.sidebarIcon} />
+                        <Text style={styles.sidebarButtonText}>Feedback</Text>
+                    </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Transaction")}>
-                                    <Image source={{ uri: 'https://i.imgur.com/MeRPAqt.png' }} style={styles.sidebarIcon} />
-                                    <Text style={styles.sidebarButtonText}>Transaction</Text>
-                                </TouchableOpacity>
+                    <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Transaction")}>
+                        <Image source={{ uri: 'https://i.imgur.com/MeRPAqt.png' }} style={styles.sidebarIcon} />
+                        <Text style={styles.sidebarButtonText}>Transaction</Text>
+                    </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Park")}>
-                                    <Image source={{ uri: 'https://i.imgur.com/vetauvM.png' }} style={styles.sidebarIcon} />
-                                    <Text style={styles.sidebarButtonText}>Parking</Text>
-                                </TouchableOpacity>
+                    <TouchableOpacity style={styles.sidebarButton} onPress={() => handleCardClick("Park")}>
+                        <Image source={{ uri: 'https://i.imgur.com/vetauvM.png' }} style={styles.sidebarIcon} />
+                        <Text style={styles.sidebarButtonText}>Parking</Text>
+                    </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.sidebarButton} onPress={() => handleLogout("Start")}>
-                                    <Image source={{ uri: 'https://i.imgur.com/YzzzEXD.png' }} style={styles.sidebarIcon} />
-                                    <Text style={styles.sidebarButtonText}>Log Out</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </Modal>
-            </View>
+                    <TouchableOpacity style={styles.sidebarButton} onPress={() => handleLogout("Start")}>
+                        <Image source={{ uri: 'https://i.imgur.com/YzzzEXD.png' }} style={styles.sidebarIcon} />
+                        <Text style={styles.sidebarButtonText}>Log Out</Text>
+                    </TouchableOpacity>
+                </View>
+            </TouchableWithoutFeedback>
+        </View>
+    </TouchableWithoutFeedback>
+</Modal>
+      </View>
         </View>
     );
 }
@@ -428,13 +426,13 @@ const styles = StyleSheet.create({
         marginTop: 40,
     },
     logoContainer: {
-        alignItems: "center",
+       marginLeft: 25,
     },
     logoText: {
-        fontSize: 30,
-        fontWeight: "bold",
-        color: "white",
-        marginBottom: 50,
+        fontSize: 18,
+        color: "#fef250",
+        fontWeight:"bold",
+        marginBottom: 30,
     },
     logoSubText: {
         fontSize: 12,
@@ -442,37 +440,48 @@ const styles = StyleSheet.create({
         marginTop: -30,
         marginBottom: 10,
         fontWeight: "bold",
+        marginLeft: 85,
     },
     carouselContainer: {
-        height: 200,
+        height: 250, // Increase height to make it more prominent
+        marginVertical: 20, // Add vertical margin to create space around the FlatList
     },
+    separatorLine: {
+        marginTop: 30,
+        width: '90%',
+        height: 1,
+        backgroundColor: '#e0e0e0', // Light gray line to divide sections
+        alignSelf: 'center',
+        marginVertical: 15,
+    },    
     carouselItemContainer: {
-        width: 360,
+        width: 340,
         height: 200,
         borderRadius: 20,
         overflow: "hidden",
         marginHorizontal: 10,
         elevation: 5,
-        borderWidth: 2,
-        borderColor: "#FFD700",
+        borderWidth: 5,
+        borderColor: "#dec049",
         position: "relative",
-        backgroundColor: "white",
+        backgroundColor: "black",
     },
     carouselImage: {
         width: "100%",
         height: "100%",
         resizeMode: "cover",
+        opacity: 0.9,
     },
     carouselText: {
         position: "absolute",
-        bottom: 10,
+        bottom: 5, 
         left: 10,
         color: "white",
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "bold",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        padding: 5,
-        zIndex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        padding: 8,
+        borderRadius: 10,
     },
     tabBarContainer: {
         marginTop: "60%",
@@ -521,6 +530,13 @@ const styles = StyleSheet.create({
     sidebarButtonText: {
         fontSize: 16,
     },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)", // Dark background overlay
+        justifyContent: "center",
+        alignItems: "flex-start",
+    },
+    
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,
         width: "100%",
@@ -582,35 +598,38 @@ const styles = StyleSheet.create({
     additionalCard: {
         width: '90%',
         maxWidth: 400,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 20,
+        backgroundColor: '#f0f0f0', // Lighter background to make it blend more
+        borderRadius: 8, // Smaller border radius for a subtler look
+        padding: 12, // Reduced padding
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 5,
+        shadowOpacity: 0.5, // Lower shadow opacity to make it less prominent
+        shadowRadius: 3,
+        elevation: 2, // Lower elevation
         marginTop: 10,
     },
     additionalCardTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
+        fontSize: 16, // Slightly smaller font size
+        fontWeight: '500', // Make font weight regular
+        marginBottom: 5,
+        color: '#333', // Darker, muted color
     },
     additionalCardContent: {
-        fontSize: 16,
-        marginBottom: 20,
+        fontSize: 14, // Smaller font size
+        color: '#666', // Muted text color
+        marginBottom: 15,
     },
     additionalButton: {
-        backgroundColor: '#007BFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
+        backgroundColor: '#44a6c6', // Subtle button color
+        paddingVertical: 8,
+        paddingHorizontal: 16,
         borderRadius: 5,
         alignItems: 'center',
     },
+    
     additionalButtonText: {
-        color: '#fff',
-        fontSize: 16,
+        color: '#555', // Subtle text color
+        fontSize: 14,
     },
     reservationStatusContainer: {
         padding: 10,

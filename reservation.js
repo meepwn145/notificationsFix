@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, Button } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { db } from "./config/firebase";
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, getDocs, updateDoc, setDoc, doc, getDoc } from "firebase/firestore";
+import { collectionGroup,collection, query, where, onSnapshot, addDoc, deleteDoc, getDocs, updateDoc, setDoc, doc, getDoc } from "firebase/firestore";
 import Swiper from "react-native-swiper";
 import UserContext from "./UserContext";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -39,19 +39,26 @@ export default function ReservationScreen({ route }) {
     const [successfullyReservedSlots, setSuccessfullyReservedSlots] = useState([]);
     
     useEffect(() => {
-        const reservationsRef = collection(db, "reservations");
-        const unsubscribe = onSnapshot(reservationsRef, (snapshot) => {
-            const reservationData = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setReservations(reservationData);
-        });
-
-        return () => {
-            unsubscribe();
-        };
-    }, []);
+        if (email) {
+            const reservationsRef = collection(db, "reservations");
+            const reservationsQuery = query(reservationsRef, where("userEmail", "==", email));
+    
+            const unsubscribe = onSnapshot(reservationsQuery, (snapshot) => {
+                const newReservations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    slotNumber: doc.data().slotId, // Ensure this is mapped correctly
+                    ...doc.data(),
+                }));
+                setReservedSlots(newReservations);
+                console.log("Updated reservations:", newReservations);
+            }, (error) => {
+                console.error("Error fetching reservations:", error);
+            });
+    
+            return () => unsubscribe();
+        }
+    }, [email]);
+     
 
     const uploadImageToStorage = async (localUri, userEmail, slotId) => {
         const fileName = `image_${slotId}_${new Date().toISOString()}`; // Name file based on slotId and timestamp
@@ -103,30 +110,54 @@ export default function ReservationScreen({ route }) {
             saveReservedSlots();
         }
     }, [reservedSlots, user.email]);
-
-    
     
     useEffect(() => {
-        const fetchUserData = async () => {
-            if (user?.email) {
-                const userRef = doc(db, "users", user.email);
-                try {
-                    const docSnap = await getDoc(userRef);
-                    if (docSnap.exists()) {
-                        const userData = docSnap.data();
-                        console.log("Fetched user data:", userData);
-                        setPlateNumber(userData.carPlateNumber);
-                    } else {
-                        console.log("No such user document!");
-                    }
-                } catch (error) {
-                    console.error("Error fetching user data:", error);
-                }
-            }
-        };
+        if (user) {
+            console.log('Current User:', user);
+        } else {
+            console.log('No user is logged in');
+        }
+    }, [user]);
 
-        fetchUserData();
-    }, [user?.email]);
+    const findSlotsByUserCarPlate = async (carPlateNumber, managementName) => {
+        console.log(`Checking slots for carPlateNumber: ${carPlateNumber} at management: ${managementName}`);
+    
+        // Define the collection path dynamically based on managementName
+        const slotsCollectionPath = `slot/${managementName}/slotData`;
+        
+        try {
+            const slotsQuery = query(collection(db, slotsCollectionPath), where("userDetails.carPlateNumber", "==", carPlateNumber));
+            const querySnapshot = await getDocs(slotsQuery);
+            if (querySnapshot.empty) {
+                console.log('No slots found for the given car plate number.');
+                return [];
+            } else {
+                const slots = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log("Found slots:", slots);
+                return slots;
+            }
+        } catch (error) {
+            console.error("Error fetching slots by car plate number:", error);
+            return [];
+        }
+    };
+    
+    useEffect(() => {
+        if (user?.carPlateNumber && item?.managementName) {
+            findSlotsByUserCarPlate(user.carPlateNumber, item.managementName)
+                .then(slots => {
+                    if (slots.length > 0) {
+                        // Handle the slots data, e.g., update state or UI
+                        console.log("Slots data:", slots);
+                    } else {
+                        console.log("No reserved slots for this user.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Failed to fetch slots:", error);
+                });
+        }
+    }, [user?.carPlateNumber, item?.managementName]);
 
     useEffect(() => {
         if (!user) {
@@ -458,9 +489,31 @@ export default function ReservationScreen({ route }) {
     };
      
     const handleCancelReservation = async () => {
+        if (!selectedSlot) {
+            Alert.alert('Invalid Cancellation', 'Please select a valid reserved slot before canceling.', [
+                { text: 'OK', style: 'default' },
+            ]);
+            return;
+        }
+    
         const reservedSlot = reservedSlots.find(slot => slot.slotNumber === selectedSlot && slot.managementName === item.managementName);
     
         if (reservedSlot) {
+            let floorTitle = "General Parking"; // Default title, adjust based on your actual slot data if needed
+            let slotIndex = -1;
+    
+            // Search for the floor title and slot index based on the reserved slot number
+            slotSets.forEach(set => {
+                set.slots.forEach((slot, index) => {
+                    if (slot.slotNumber === selectedSlot) {
+                        floorTitle = set.title;
+                        slotIndex = index;
+                    }
+                });
+            });
+    
+            const uniqueDocName = `slot_${floorTitle}_${slotIndex}`;
+    
             Alert.alert(
                 'Cancel Reservation',
                 `Are you sure you want to cancel Slot ${selectedSlot} at ${item.managementName}?`,
@@ -473,20 +526,8 @@ export default function ReservationScreen({ route }) {
                         text: 'OK',
                         onPress: async () => {
                             try {
-                                // Adjust the query to include both slotNumber and managementName
-                                const q = query(
-                                    collection(db, "reservations"), 
-                                    where("slotId", "==", selectedSlot - 1),
-                                    where("managementName", "==", item.managementName),
-                                    where("userEmail", "==", email)  // Assuming userEmail is also a key to identify the reservation
-                                );
-                                const querySnapshot = await getDocs(q);
-    
-                                querySnapshot.forEach(async (doc) => {
-                                    console.log("Document found: ", doc.id); // Log to check if documents are being fetched
-                                    await deleteDoc(doc.ref);  // Delete each document that matches the query
-                                });
-                                
+                                const docRef = doc(db, "reservations", uniqueDocName);
+                                await deleteDoc(docRef);
     
                                 setReservedSlots(prevSlots => prevSlots.filter(slot => slot.slotNumber !== selectedSlot || slot.managementName !== item.managementName));
                                 setSelectedSlot(null);
@@ -605,21 +646,22 @@ export default function ReservationScreen({ route }) {
                         />
                     </View>
                 </View>
-                {reservedSlots.length > 0 && (
-                    <View>
-                        <Text style={styles.infoTextTitle}>Your Reservation</Text>
-                        <View style={styles.divider} />
-                        {reservedSlots.map((reservedSlot, index) => (
-                            <View key={index} style={styles.reservedSlotButton}>
-                                <Text style={styles.infoText}>Slot {reservedSlot.slotNumber} at {reservedSlot.managementName}</Text>
-                                <Text style={styles.infoText2}>Total Amount {reservedSlot.parkingPay}.00
-                                </Text>
-                            </View>
-                        ))}
+                {reservedSlots.length > 0 ? (
+            <View>
+                <Text style={styles.infoTextTitle}>Your Reservation</Text>
+                <View style={styles.divider} />
+                {reservedSlots.map((slot, index) => (
+                    <View key={index} style={styles.reservedSlotButton}>
+                        <Text style={styles.infoText}>Slot Number: {slot.slotNumber}</Text>
+                        <Text style={styles.infoText}>Management: {slot.managementName}</Text>
                     </View>
-                )}
+                ))}
             </View>
-        </View>
+        ) : (
+            <Text style={styles.infoText}>No reservations found</Text>
+        )}
+    </View>
+</View>
     );
 }
 
